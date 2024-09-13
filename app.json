@@ -8,7 +8,7 @@
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/images/picture2.png",
+      "image": "./assets/images/BirthGram.png",
       "resizeMode": "contain",
       "backgroundColor": "#191970"
     },
