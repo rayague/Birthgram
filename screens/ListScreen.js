@@ -1,195 +1,122 @@
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
-  SafeAreaView,
-  StatusBar,
-  StyleSheet,
   FlatList,
-  Pressable,
+  StyleSheet,
   Alert,
+  TouchableOpacity,
   RefreshControl,
-  Modal,
-  TouchableOpacity
+  Image
 } from "react-native";
-import React, { useState, useEffect } from "react";
 import * as SQLite from "expo-sqlite";
-import { Ionicons } from "@expo/vector-icons";
-import * as Linking from "expo-linking";
-import * as Clipboard from "expo-clipboard";
 
 const openDatabaseAsync = async () => {
   return await SQLite.openDatabaseAsync("contacts.db");
 };
 
-export default function CelebrationScreen() {
-  const [celebrations, setCelebrations] = useState([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [generatedMessage, setGeneratedMessage] = useState("");
+export default function ListScreen() {
+  const [contacts, setContacts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Ouvrir la base de données
-  const [db, setDb] = useState(null);
-
-  useEffect(() => {
-    const initDatabase = async () => {
-      const database = await openDatabaseAsync();
-      setDb(database);
-      loadCelebrations(database);
-    };
-    initDatabase();
+  const fetchContacts = useCallback(async () => {
+    try {
+      const db = await openDatabaseAsync();
+      await db.execAsync(`
+        PRAGMA journal_mode = WAL;
+        CREATE TABLE IF NOT EXISTS contact (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT,
+          date TEXT,
+          option TEXT,
+          imageUri TEXT
+        );
+      `);
+      const result = await db.getAllAsync("SELECT * FROM contact");
+      setContacts(result);
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Error fetching contacts: ", error);
+      setIsLoading(false);
+    }
   }, []);
 
-  const loadCelebrations = async (database) => {
-    if (!database) return;
+  useEffect(() => {
+    fetchContacts(); // Appeler la fonction pour charger les contacts au démarrage
+  }, [fetchContacts]);
 
-    try {
-      // Récupérer tous les contacts
-      database.transaction((tx) => {
-        tx.executeSql("SELECT * FROM contact;", [], (txObj, resultSet) => {
-          const contacts = resultSet.rows._array;
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchContacts().then(() => setRefreshing(false));
+  }, [fetchContacts]);
 
-          // Obtenir la date actuelle
-          const today = new Date();
-          const fiveDaysLater = new Date();
-          fiveDaysLater.setDate(today.getDate() + 5);
-
-          // Filtrer les contacts dont la date est entre aujourd'hui et dans 5 jours
-          const filteredCelebrations = contacts.filter((contact) => {
-            const contactDate = new Date(contact.date);
-            return contactDate >= today && contactDate <= fiveDaysLater;
-          });
-
-          // Mettre à jour l'état avec les contacts filtrés
-          setCelebrations(filteredCelebrations);
-        });
-      });
-    } catch (error) {
-      console.error("Error loading celebrations: ", error);
-    }
-  };
-
-  const onRefresh = async () => {
-    setIsRefreshing(true);
-    await loadCelebrations(db);
-    setIsRefreshing(false);
-  };
-
-  const openContacts = (phoneNumber) => {
-    const url = `tel:${phoneNumber}`;
-    Linking.openURL(url).catch((err) =>
-      console.error("Error opening dialer:", err)
+  const handleDelete = async (id) => {
+    Alert.alert(
+      "Confirmation",
+      "Voulez-vous vraiment supprimer ce contact ?",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "OK",
+          onPress: async () => {
+            try {
+              const db = await openDatabaseAsync();
+              await db.execAsync(`DELETE FROM contact WHERE id = ?`, [id]);
+              fetchContacts();
+            } catch (error) {
+              console.error("Error deleting contact: ", error);
+            }
+          }
+        }
+      ],
+      { cancelable: true }
     );
   };
 
-  const handleGenerate = async (contactId) => {
-    try {
-      const message = await getMessageByContactId(contactId); // Récupérer le message depuis la base
-      setGeneratedMessage(message); // Mettre à jour l'état avec le message récupéré
-      setModalVisible(true); // Ouvrir le modal
-    } catch (error) {
-      console.error("Error: ", error);
-    }
-  };
-
-  const getMessageByContactId = (contactId) => {
-    return new Promise((resolve, reject) => {
-      db.transaction((tx) => {
-        tx.executeSql(
-          "SELECT message FROM text WHERE contact_id = ?",
-          [contactId],
-          (txObj, resultSet) => {
-            if (resultSet.rows.length > 0) {
-              resolve(resultSet.rows._array[0].message); // Récupérer le message
-            } else {
-              resolve("Aucun message trouvé pour ce contact."); // Si aucun message trouvé
-            }
-          },
-          (txObj, error) => {
-            console.error("Error retrieving message: ", error);
-            reject("Erreur lors de la récupération du message.");
-          }
-        );
-      });
-    });
-  };
-
-  const copyToClipboard = () => {
-    if (generatedMessage) {
-      Clipboard.setString(generatedMessage);
-      console.log("Copied to clipboard!", generatedMessage);
-    }
-  };
-
-  const renderCelebrationItem = ({ item }) => (
-    <View>
-      <View style={styles.celebrationItem}>
-        <Text style={styles.celebrationName}>{item.name}</Text>
-        <Text style={styles.celebrationDate}>
+  const renderContactItem = ({ item }) => (
+    <View style={styles.card}>
+      {item.imageUri ? (
+        <Image source={{ uri: item.imageUri }} style={styles.contactImage} />
+      ) : (
+        <View style={styles.imagePlaceholder}>
+          <Text style={styles.placeholderText}>No Image</Text>
+        </View>
+      )}
+      <View style={styles.cardContent}>
+        <Text style={styles.contactName}>{item.name}</Text>
+        <Text style={styles.contactDate}>
           {new Date(item.date).toLocaleDateString()}
         </Text>
-        <View style={styles.buttonContainer}>
-          <Pressable
-            style={styles.callButton}
-            onPress={() => openContacts(item.phoneNumber)}
-          >
-            <Ionicons name="call" size={24} color="white" />
-            <Text style={styles.buttonText}>CALL</Text>
-          </Pressable>
-          <Pressable
-            style={styles.generateButton}
-            onPress={() => handleGenerate(item.id)} // Passer l'ID du contact ici
-          >
-            <Ionicons name="document-text" size={24} color="white" />
-            <Text style={styles.buttonText}>GENERATE</Text>
-          </Pressable>
-        </View>
+        <Text style={styles.contactOption}>{item.option}</Text>
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => handleDelete(item.id)}
+        >
+          <Text style={styles.buttonText}>Supprimer</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="dodgerblue" />
-      <FlatList
-        data={celebrations}
-        renderItem={renderCelebrationItem}
-        keyExtractor={(item) => item.id.toString()} // Assurez-vous que l'ID est une chaîne
-        contentContainerStyle={styles.celebrationList}
-        refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-        }
-      />
-      <View style={modalVisible ? styles.centeredView : null}>
-        <Modal
-          transparent={true}
-          visible={modalVisible}
-          animationType="fade"
-          onRequestClose={() => {
-            setModalVisible(false);
-          }}
-        >
-          <View style={styles.centeredView}>
-            <View style={styles.modalView}>
-              <Text style={styles.modalText}>
-                {generatedMessage} {/* Affiche le message récupéré */}
-              </Text>
-              <TouchableOpacity
-                onPress={copyToClipboard}
-                style={styles.copyButton}
-              >
-                <Text style={styles.buttonText}>COPY TEXT</Text>
-              </TouchableOpacity>
-              <Pressable
-                style={[styles.button, styles.buttonClose]}
-                onPress={() => setModalVisible(false)}
-              >
-                <Text style={styles.textStyle}>CLOSE</Text>
-              </Pressable>
-            </View>
-          </View>
-        </Modal>
-      </View>
-    </SafeAreaView>
+    <View style={styles.container}>
+      {isLoading ? (
+        <Text style={styles.loadingText}>Chargement des contacts...</Text>
+      ) : contacts.length > 0 ? (
+        <FlatList
+          data={contacts}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderContactItem}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          contentContainerStyle={styles.flatListContent}
+        />
+      ) : (
+        <Text style={styles.emptyText}>Aucun contact trouvé.</Text>
+      )}
+    </View>
   );
 }
 
@@ -198,108 +125,81 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
     height: "100%",
-    backgroundColor: "#f9f9f9"
+    backgroundColor: "#f9f9f9",
+    padding: 20
   },
-  celebrationItem: {
-    padding: 15,
-    marginVertical: 10,
-    marginHorizontal: 10,
+  flatListContent: {
+    paddingBottom: 20
+  },
+  card: {
     backgroundColor: "#fff",
-    borderRadius: 10,
+    borderRadius: 15,
+    elevation: 3,
+    marginVertical: 10,
+    padding: 15,
+    flexDirection: "row",
+    alignItems: "center",
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2
     },
     shadowOpacity: 0.1,
-    shadowRadius: 2.5,
-    elevation: 3
+    shadowRadius: 3
   },
-  celebrationName: {
+  cardContent: {
+    flex: 1,
+    marginLeft: 10
+  },
+  contactImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30
+  },
+  imagePlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#ccc",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  placeholderText: {
+    color: "#fff",
+    fontWeight: "bold"
+  },
+  contactName: {
     fontSize: 18,
     fontWeight: "bold",
     color: "#333"
   },
-  celebrationDate: {
+  contactDate: {
     fontSize: 14,
-    color: "#666",
-    marginVertical: 2
+    color: "#666"
   },
-  buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  contactOption: {
+    fontSize: 14,
+    color: "#666"
+  },
+  deleteButton: {
+    backgroundColor: "red",
+    borderRadius: 5,
+    padding: 10,
     marginTop: 10
-  },
-  callButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "green",
-    borderRadius: 5,
-    padding: 10,
-    flex: 1,
-    marginRight: 5
-  },
-  generateButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "dodgerblue",
-    borderRadius: 5,
-    padding: 10,
-    flex: 1,
-    marginLeft: 5
   },
   buttonText: {
     color: "#fff",
-    marginLeft: 5,
-    fontWeight: "bold"
-  },
-  centeredView: {
-    flex: 1,
-    height: "100%",
-    width: "100%",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)"
-  },
-
-  modalView: {
-    margin: 20,
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 35,
-    width: "90%",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5
-  },
-  button: {
-    borderRadius: 5,
-    padding: 10,
-    elevation: 2,
-    width: "100%"
-  },
-  buttonClose: {
-    backgroundColor: "red"
-  },
-  textStyle: {
-    color: "white",
     fontWeight: "bold",
     textAlign: "center"
   },
-  modalText: {
-    marginBottom: 15,
-    textAlign: "center"
+  loadingText: {
+    textAlign: "center",
+    marginTop: 20
   },
-  copyButton: {
-    backgroundColor: "dodgerblue",
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 15
+  emptyText: {
+    textAlign: "center",
+    marginTop: 20,
+    fontSize: 16,
+    color: "#888"
   }
 });

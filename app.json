@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/images/BirthGram.png",
       "resizeMode": "contain",
-      "backgroundColor": "#191970"
+      "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true
