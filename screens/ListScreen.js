@@ -19,6 +19,7 @@ export default function ListScreen() {
   const [contacts, setContacts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const db = openDatabaseAsync(); // Appel de la fonction pour ouvrir la base de données
 
   const fetchContacts = useCallback(async () => {
     try {
@@ -51,26 +52,32 @@ export default function ListScreen() {
     fetchContacts().then(() => setRefreshing(false));
   }, [fetchContacts]);
 
+  // Fonction pour supprimer un contact
   const handleDelete = async (id) => {
     Alert.alert(
       "Confirmation",
-      "Voulez-vous vraiment supprimer ce contact ?",
+      "Are you sure you want to delete this contact?",
       [
-        { text: "Annuler", style: "cancel" },
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
         {
           text: "OK",
           onPress: async () => {
             try {
-              const db = await openDatabaseAsync();
-              await db.execAsync(`DELETE FROM contact WHERE id = ?`, [id]);
-              fetchContacts();
+              const database = await db;
+              await database.runAsync("DELETE FROM contact WHERE id = ?;", [
+                id
+              ]);
+              fetchContacts(); // Mettre à jour la liste après suppression
+              Alert.alert("Success", "Contact deleted successfully.");
             } catch (error) {
               console.error("Error deleting contact: ", error);
             }
           }
         }
-      ],
-      { cancelable: true }
+      ]
     );
   };
 
