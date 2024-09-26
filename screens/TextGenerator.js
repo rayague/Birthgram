@@ -1,6 +1,6 @@
 import { View, Text } from "react-native";
 import React, { useEffect } from "react";
-import * as SQLite from "expo-sqlite";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const son = [
   {
@@ -12574,110 +12574,57 @@ const godMother = [
   }
 ];
 
-// const categories = [
-//   { key: "SON", messages: son },
-//   { key: "DAUGHTER", messages: daughter },
-//   { key: "SISTER", messages: sister },
-//   { key: "BROTHER", messages: brother },
-//   { key: "FRIEND", messages: friend },
-//   { key: "NEIGHBOR", messages: neighbor },
-//   { key: "BESTFRIEND", messages: bestfriend },
-//   { key: "BOYFRIEND", messages: boyfriend },
-//   { key: "GIRLFRIEND", messages: girlfriend },
-//   { key: "HUSBAND", messages: husband },
-//   { key: "FATHER", messages: father },
-//   { key: "MOTHER", messages: mother },
-//   { key: "AUNTIE", messages: auntie },
-//   { key: "UNCLE", messages: uncle },
-//   { key: "COUSIN", messages: cousin },
-//   { key: "NIECE", messages: niece },
-//   { key: "NEPHEW", messages: nephew },
-//   { key: "GRAND-SON", messages: grandSon },
-//   { key: "GRAND-DAUGHTER", messages: grandDaughter },
-//   { key: "GRAND-FATHER", messages: grandFather },
-//   { key: "GRAND-MOTHER", messages: grandMother },
-//   { key: "GOD-FATHER", messages: godFather },
-//   { key: "GOD-MOTHER", messages: godMother }
-// ];
-
-// Ouvrir la base de données SQLite
-
-const db = SQLite.openDatabaseSync(
-  { name: "Messages.db", location: "default" },
-  () => {
-    console.log("Database opened");
-  },
-  (error) => {
-    console.log("Error: ", error);
-  }
-);
-
-// Fonction de seeding des données
 const seedData = async () => {
   try {
-    db.transaction((tx) => {
-      // Créer la table si elle n'existe pas déjà
-      tx.executeSql(
-        `CREATE TABLE IF NOT EXISTS texts (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          category TEXT,
-          message TEXT
-        )`
+    const isSeeded = await AsyncStorage.getItem("dataSeeded");
+
+    if (isSeeded) {
+      console.log("Data has already been seeded. Skipping...");
+      return; // Ne fais rien si les données sont déjà semées
+    }
+
+    console.log("Seeding data...");
+
+    const categories = [
+      { key: "SON", messages: son },
+      { key: "DAUGHTER", messages: daughter },
+      { key: "SISTER", messages: sister },
+      { key: "BROTHER", messages: brother },
+      { key: "FRIEND", messages: friend },
+      { key: "NEIGHBOR", messages: neighbor },
+      { key: "BESTFRIEND", messages: bestfriend },
+      { key: "BOYFRIEND", messages: boyfriend },
+      { key: "GIRLFRIEND", messages: girlfriend },
+      { key: "HUSBAND", messages: husband },
+      { key: "FATHER", messages: father },
+      { key: "MOTHER", messages: mother },
+      { key: "AUNTIE", messages: auntie },
+      { key: "UNCLE", messages: uncle },
+      { key: "COUSIN", messages: cousin },
+      { key: "NIECE", messages: niece },
+      { key: "NEPHEW", messages: nephew },
+      { key: "GRAND-SON", messages: grandSon },
+      { key: "GRAND-DAUGHTER", messages: grandDaughter },
+      { key: "GRAND-FATHER", messages: grandFather },
+      { key: "GRAND-MOTHER", messages: grandMother },
+      { key: "GOD-FATHER", messages: godFather },
+      { key: "GOD-MOTHER", messages: godMother }
+    ];
+
+    for (const category of categories) {
+      console.log(`Inserting messages for ${category.key}...`);
+      await AsyncStorage.setItem(
+        category.key,
+        JSON.stringify(category.messages)
       );
+      console.log(`${category.key} messages seeded successfully!`);
+    }
 
-      // Vérifier si les données sont déjà seedées
-      tx.executeSql(`SELECT COUNT(*) as count FROM texts`, [], (_, result) => {
-        const count = result.rows.item(0).count;
-        if (count > 0) {
-          console.log("Data has already been seeded. Skipping...");
-          return; // Ne fais rien si les données sont déjà présentes
-        }
-
-        console.log("Seeding data...");
-
-        const categories = [
-          { key: "SON", messages: son },
-          { key: "DAUGHTER", messages: daughter },
-          { key: "SISTER", messages: sister },
-          { key: "BROTHER", messages: brother },
-          { key: "FRIEND", messages: friend },
-          { key: "NEIGHBOR", messages: neighbor },
-          { key: "BESTFRIEND", messages: bestfriend },
-          { key: "BOYFRIEND", messages: boyfriend },
-          { key: "GIRLFRIEND", messages: girlfriend },
-          { key: "HUSBAND", messages: husband },
-          { key: "FATHER", messages: father },
-          { key: "MOTHER", messages: mother },
-          { key: "AUNTIE", messages: auntie },
-          { key: "UNCLE", messages: uncle },
-          { key: "COUSIN", messages: cousin },
-          { key: "NIECE", messages: niece },
-          { key: "NEPHEW", messages: nephew },
-          { key: "GRAND-SON", messages: grandSon },
-          { key: "GRAND-DAUGHTER", messages: grandDaughter },
-          { key: "GRAND-FATHER", messages: grandFather },
-          { key: "GRAND-MOTHER", messages: grandMother },
-          { key: "GOD-FATHER", messages: godFather },
-          { key: "GOD-MOTHER", messages: godMother }
-        ];
-
-        // Insérer les messages pour chaque catégorie
-        categories.forEach((category) => {
-          category.messages.forEach((message) => {
-            tx.executeSql(
-              "INSERT INTO texts (category, message) VALUES (?, ?);",
-              [category.key, message]
-            );
-          });
-        });
-
-        console.log("Data seeded successfully.");
-      });
-    });
+    await AsyncStorage.setItem("dataSeeded", "true");
+    console.log("All data seeded successfully!");
   } catch (error) {
     console.error("Error seeding data: ", error);
   }
 };
 
-// Exemple d'appel de la fonction
-seedData();
+export default seedData;
