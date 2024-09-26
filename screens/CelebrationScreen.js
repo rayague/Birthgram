@@ -61,6 +61,17 @@ export default function CelebrationScreen() {
   };
 
   useEffect(() => {
+    const requestNotificationPermission = async () => {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== "granted") {
+        alert("Notification permissions are required!");
+      }
+    };
+
+    requestNotificationPermission();
+  }, []);
+
+  useEffect(() => {
     const initializeDatabase = async () => {
       const database = await openDatabaseAsync();
       await loadCelebrations(); // Charge les célébrations après que la DB soit prête
@@ -105,6 +116,50 @@ export default function CelebrationScreen() {
 
   const handleCall = (name) => {
     Alert.alert(`Calling ${name}...`);
+  };
+  const scheduleNotificationsForContacts = async () => {
+    for (const contact of celebrations) {
+      const contactDate = new Date(contact.date);
+      const today = new Date();
+      const daysRemaining = Math.ceil(
+        (contactDate - today) / (1000 * 60 * 60 * 24)
+      );
+
+      if (daysRemaining >= 0 && daysRemaining <= 5) {
+        // Planifier les notifications
+        for (let i = 0; i < 3; i++) {
+          // Trois notifications par jour
+          const hour = i === 0 ? 9 : i === 1 ? 13 : 18; // Notifications à 9h, 13h, 18h
+
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: "Upcoming Birthday Reminder 🎉",
+              body: `${contact.name}'s birthday is in ${daysRemaining} days!`
+            },
+            trigger: {
+              hour: hour,
+              minute: 0,
+              repeats: true
+            }
+          });
+
+          // Afficher le ToastAndroid
+          showToast(contact.name, daysRemaining);
+        }
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (celebrations.length > 0) {
+      scheduleNotificationsForContacts();
+    }
+  }, [celebrations]);
+
+  const showToast = (contactName, daysRemaining) => {
+    const message = `${contactName}'s birthday is in ${daysRemaining} days!`;
+    ToastAndroid.show(message, ToastAndroid.LONG);
+    console.log(`Toast shown: ${message}`);
   };
 
   const onRefresh = async () => {
@@ -211,13 +266,6 @@ export default function CelebrationScreen() {
     } catch (error) {
       console.error("Error retrieving messages: ", error);
     }
-  };
-
-  // Fonction pour afficher un ToastAndroid
-  const showToast = (contactName, daysRemaining) => {
-    const message = `${contactName}'s birthday is in ${daysRemaining} days!`;
-    ToastAndroid.show(message, ToastAndroid.LONG);
-    console.log(`Toast shown: ${message}`);
   };
 
   const copyToClipboard = () => {
