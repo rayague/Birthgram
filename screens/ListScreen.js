@@ -7,19 +7,21 @@ import {
   Alert,
   TouchableOpacity,
   RefreshControl,
-  Image
+  Image,
+  Pressable
 } from "react-native";
 import * as SQLite from "expo-sqlite";
+import { useNavigation } from "@react-navigation/native";
 
 const openDatabaseAsync = async () => {
   return await SQLite.openDatabaseAsync("contacts.db");
 };
 
 export default function ListScreen() {
+  const navigation = useNavigation();
   const [contacts, setContacts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const db = openDatabaseAsync(); // Appel de la fonction pour ouvrir la base de données
 
   const fetchContacts = useCallback(async () => {
     try {
@@ -44,15 +46,15 @@ export default function ListScreen() {
   }, []);
 
   useEffect(() => {
-    fetchContacts(); // Appeler la fonction pour charger les contacts au démarrage
+    fetchContacts(); // Load contacts on component mount
   }, [fetchContacts]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchContacts().then(() => setRefreshing(false));
+    fetchContacts().then(() => setRefreshing(false)); // Fetch contacts and stop refreshing
   }, [fetchContacts]);
 
-  // Fonction pour supprimer un contact
+  // Function to delete a contact
   const handleDelete = async (id) => {
     Alert.alert(
       "Confirmation",
@@ -66,11 +68,9 @@ export default function ListScreen() {
           text: "OK",
           onPress: async () => {
             try {
-              const database = await db;
-              await database.runAsync("DELETE FROM contact WHERE id = ?;", [
-                id
-              ]);
-              fetchContacts(); // Mettre à jour la liste après suppression
+              const db = await openDatabaseAsync();
+              await db.runAsync("DELETE FROM contact WHERE id = ?;", [id]);
+              fetchContacts(); // Update list after deletion
               Alert.alert("Success", "Contact deleted successfully.");
             } catch (error) {
               console.error("Error deleting contact: ", error);
@@ -81,29 +81,58 @@ export default function ListScreen() {
     );
   };
 
+  // const renderContactItem = ({ item }) => (
+  //   <View style={styles.card}>
+  //     {item.imageUri ? (
+  //       <Image source={{ uri: item.imageUri }} style={styles.contactImage} />
+  //     ) : (
+  //       <View style={styles.imagePlaceholder}>
+  //         <Text style={styles.placeholderText}>No Image</Text>
+  //       </View>
+  //     )}
+  //     <View style={styles.cardContent}>
+  //       <Text style={styles.contactName}>{item.name}</Text>
+  //       <Text style={styles.contactDate}>
+  //         {new Date(item.date).toLocaleDateString()}
+  //       </Text>
+  //       <Text style={styles.contactOption}>{item.option}</Text>
+  //       <TouchableOpacity
+  //         style={styles.deleteButton}
+  //         onPress={() => handleDelete(item.id)}
+  //       >
+  //         <Text style={styles.buttonText}>Supprimer</Text>
+  //       </TouchableOpacity>
+  //     </View>
+  //   </View>
+  // );
+
   const renderContactItem = ({ item }) => (
-    <View style={styles.card}>
-      {item.imageUri ? (
-        <Image source={{ uri: item.imageUri }} style={styles.contactImage} />
-      ) : (
-        <View style={styles.imagePlaceholder}>
-          <Text style={styles.placeholderText}>No Image</Text>
+    <Pressable
+      onPress={() => navigation.navigate("DETAILS", { contact: item })}
+    >
+      <View style={styles.card}>
+        {item.imageUri ? (
+          <Image source={{ uri: item.imageUri }} style={styles.contactImage} />
+        ) : (
+          <View style={styles.imagePlaceholder}>
+            <Text style={styles.placeholderText}>No Image</Text>
+          </View>
+        )}
+        <View style={styles.cardContent}>
+          <Text style={styles.contactName}>{item.name}</Text>
+          <Text style={styles.contactDate}>
+            {new Date(item.date).toLocaleDateString()}
+          </Text>
+          <Text style={styles.contactOption}>{item.option}</Text>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => handleDelete(item.id)}
+          >
+            <Text style={styles.buttonText}>Supprimer</Text>
+          </TouchableOpacity>
         </View>
-      )}
-      <View style={styles.cardContent}>
-        <Text style={styles.contactName}>{item.name}</Text>
-        <Text style={styles.contactDate}>
-          {new Date(item.date).toLocaleDateString()}
-        </Text>
-        <Text style={styles.contactOption}>{item.option}</Text>
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => handleDelete(item.id)}
-        >
-          <Text style={styles.buttonText}>Supprimer</Text>
-        </TouchableOpacity>
       </View>
-    </View>
+    </Pressable>
   );
 
   return (

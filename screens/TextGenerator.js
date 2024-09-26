@@ -12574,36 +12574,36 @@ const godMother = [
   }
 ];
 
-import SQLite from "react-native-sqlite-storage";
-import {
-  son,
-  daughter,
-  sister,
-  brother,
-  friend,
-  neighbor,
-  bestfriend,
-  boyfriend,
-  girlfriend,
-  husband,
-  father,
-  mother,
-  auntie,
-  uncle,
-  cousin,
-  niece,
-  nephew,
-  grandSon,
-  grandDaughter,
-  grandFather,
-  grandMother,
-  godFather,
-  godMother
-} from "./textGenerator";
+// const categories = [
+//   { key: "SON", messages: son },
+//   { key: "DAUGHTER", messages: daughter },
+//   { key: "SISTER", messages: sister },
+//   { key: "BROTHER", messages: brother },
+//   { key: "FRIEND", messages: friend },
+//   { key: "NEIGHBOR", messages: neighbor },
+//   { key: "BESTFRIEND", messages: bestfriend },
+//   { key: "BOYFRIEND", messages: boyfriend },
+//   { key: "GIRLFRIEND", messages: girlfriend },
+//   { key: "HUSBAND", messages: husband },
+//   { key: "FATHER", messages: father },
+//   { key: "MOTHER", messages: mother },
+//   { key: "AUNTIE", messages: auntie },
+//   { key: "UNCLE", messages: uncle },
+//   { key: "COUSIN", messages: cousin },
+//   { key: "NIECE", messages: niece },
+//   { key: "NEPHEW", messages: nephew },
+//   { key: "GRAND-SON", messages: grandSon },
+//   { key: "GRAND-DAUGHTER", messages: grandDaughter },
+//   { key: "GRAND-FATHER", messages: grandFather },
+//   { key: "GRAND-MOTHER", messages: grandMother },
+//   { key: "GOD-FATHER", messages: godFather },
+//   { key: "GOD-MOTHER", messages: godMother }
+// ];
 
 // Ouvrir la base de données SQLite
-const db = SQLite.openDatabase(
-  { name: "mydb.db", location: "default" },
+
+const db = SQLite.openDatabaseSync(
+  { name: "Messages.db", location: "default" },
   () => {
     console.log("Database opened");
   },
@@ -12661,21 +12661,17 @@ const seedData = async () => {
           { key: "GOD-MOTHER", messages: godMother }
         ];
 
-        // Insertion des données dans la base de données
-        for (const category of categories) {
-          console.log(`Inserting messages for ${category.key}...`);
-          for (const message of category.messages) {
+        // Insérer les messages pour chaque catégorie
+        categories.forEach((category) => {
+          category.messages.forEach((message) => {
             tx.executeSql(
-              `INSERT INTO texts (category, message) VALUES (?, ?)`,
-              [category.key, message],
-              () =>
-                console.log(`${category.key} message inserted successfully!`),
-              (_, error) => console.error("Error inserting message: ", error)
+              "INSERT INTO texts (category, message) VALUES (?, ?);",
+              [category.key, message]
             );
-          }
-        }
+          });
+        });
 
-        console.log("All data seeded successfully!");
+        console.log("Data seeded successfully.");
       });
     });
   } catch (error) {
@@ -12683,5 +12679,5 @@ const seedData = async () => {
   }
 };
 
-// Appeler la fonction seedData au démarrage de l'application
+// Exemple d'appel de la fonction
 seedData();
