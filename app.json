@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Birthday App",
-    "slug": "Birthday App",
+    "slug": "birthgram",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/picture2.png",
